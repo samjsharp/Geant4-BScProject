@@ -1,0 +1,17 @@
+# Macro file for example B4 to emit alpha particles isotropically
+# Initialize kernel
+/run/initialize
+
+# Set the particle type to electron
+/gun/particle e-
+
+# Set particle energy to X keV
+/gun/energy 1000 keV
+
+# Generate random isotropic direction within the C++ code instead
+
+# Shoot the particles (1,000,000 events)
+/run/beamOn 1000000
+
+# Set tracking verbosity for better visualization (optional)
+/tracking/verbose 2
