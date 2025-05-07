@@ -1,0 +1,47 @@
+#include "PrimaryGeneratorAction.hh"
+#include "G4ParticleGun.hh"
+#include "G4ParticleTable.hh"
+#include "G4ParticleDefinition.hh"
+#include "G4SystemOfUnits.hh"
+#include "Randomize.hh"
+
+namespace B4 {
+
+PrimaryGeneratorAction::PrimaryGeneratorAction()
+{
+    G4int n_particle = 1;
+    fParticleGun = new G4ParticleGun(n_particle);
+
+    // Set the default particle as an electron (beta particle)
+    G4ParticleTable* particleTable = G4ParticleTable::GetParticleTable();
+    G4String particleName = "e-";
+    G4ParticleDefinition* particle = particleTable->FindParticle(particleName);
+    fParticleGun->SetParticleDefinition(particle);
+
+    // Set initial position of the particle at the center of the world
+    fParticleGun->SetParticlePosition(G4ThreeVector(0., 0., -2.5*mm));
+}
+
+PrimaryGeneratorAction::~PrimaryGeneratorAction()
+{
+    delete fParticleGun;
+}
+
+void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
+{
+    // Set isotropic direction for beta particles
+    G4double theta = G4UniformRand() * CLHEP::pi;
+    G4double phi = G4UniformRand() * 2. * CLHEP::pi;
+    G4double sinTheta = std::sin(theta);
+    G4double cosTheta = std::cos(theta);
+    G4double sinPhi = std::sin(phi);
+    G4double cosPhi = std::cos(phi);
+
+    G4ThreeVector direction(sinTheta * cosPhi, sinTheta * sinPhi, cosTheta);
+    fParticleGun->SetParticleMomentumDirection(direction);
+
+    // The particle energy will be set using macro files for different energy levels
+    fParticleGun->GeneratePrimaryVertex(anEvent);
+}
+
+} // namespace B4
