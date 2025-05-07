@@ -1,0 +1,106 @@
+#include "DetectorConstruction.hh"
+#include "CalorimeterSD.hh"
+#include "G4Material.hh"
+#include "G4NistManager.hh"
+
+#include "G4Box.hh"
+#include "G4LogicalVolume.hh"
+#include "G4PVPlacement.hh"
+#include "G4GlobalMagFieldMessenger.hh"
+#include "G4AutoDelete.hh"
+
+#include "G4SDManager.hh"
+
+#include "G4VisAttributes.hh"
+#include "G4Colour.hh"
+
+#include "G4PhysicalConstants.hh"
+#include "G4SystemOfUnits.hh"
+
+namespace B4c
+{
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+G4ThreadLocal
+G4GlobalMagFieldMessenger* DetectorConstruction::fMagFieldMessenger = nullptr;
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+G4VPhysicalVolume* DetectorConstruction::Construct()
+{
+    // Define materials
+    DefineMaterials();
+
+    // Define volumes
+    return DefineVolumes();
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+void DetectorConstruction::DefineMaterials()
+{
+    // Use NIST Manager to define materials
+    auto nistManager = G4NistManager::Instance();
+    nistManager->FindOrBuildMaterial("G4_Pb");
+    nistManager->FindOrBuildMaterial("G4_Si");  // Ensure silicon is defined
+    nistManager->FindOrBuildMaterial("G4_Galactic");  // Vacuum material
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+G4VPhysicalVolume* DetectorConstruction::DefineVolumes()
+{
+    // Get materials
+    auto silicon = G4NistManager::Instance()->FindOrBuildMaterial("G4_Si");
+    auto vacuum = G4NistManager::Instance()->FindOrBuildMaterial("G4_Galactic");
+
+    // World volume
+    G4Box* worldBox = new G4Box("World", 1*m, 1*m, 1*m);
+    G4LogicalVolume* logicWorld = new G4LogicalVolume(worldBox, vacuum, "WorldLV");
+    G4VPhysicalVolume* physWorld = new G4PVPlacement(
+        0,                      // No rotation
+        G4ThreeVector(),        // At (0,0,0)
+        logicWorld,             // Logical volume
+        "World",                // Name
+        0,                      // No mother volume
+        false,                  // No boolean operation
+        0,                      // Copy number
+        true                    // Check for overlaps
+    );
+
+    // Silicon detector volume (10 mm x 10 mm x 0.3 mm)
+    G4Box* siliconBox = new G4Box("SiliconBox", 5*mm, 5*mm, 0.15*mm); // Half-dimensions
+    G4LogicalVolume* logicSilicon = new G4LogicalVolume(siliconBox, silicon, "SiliconLV");
+    new G4PVPlacement(
+        0,                      // No rotation
+        G4ThreeVector(0, 0, 0*mm),  // Positioned 10 cm from the world center
+        logicSilicon,           // Logical volume
+        "SiliconDetector",      // Name
+        logicWorld,             // Mother volume
+        false,                  // No boolean operation
+        0,                      // Copy number
+        true                    // Check for overlaps
+    );
+
+    // Return the physical world
+    return physWorld;
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+void DetectorConstruction::ConstructSDandField()
+{
+    // Set up the sensitive detectors
+    auto sdManager = G4SDManager::GetSDMpointer();
+
+    // Create and assign the sensitive detector to the silicon logical volume
+    auto absSD = new CalorimeterSD("AbsorberSD", "AbsorberHitsCollection", 1);
+    sdManager->AddNewDetector(absSD);
+    SetSensitiveDetector("SiliconLV", absSD);
+
+    auto gapSD = new CalorimeterSD("GapSD", "GapHitsCollection", 1);
+    sdManager->AddNewDetector(gapSD);
+}
+
+}  // namespace B4c
