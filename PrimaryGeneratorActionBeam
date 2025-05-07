@@ -1,0 +1,80 @@
+#include "PrimaryGeneratorAction.hh"
+#include "G4ParticleGun.hh"
+#include "G4ParticleTable.hh"
+#include "G4SystemOfUnits.hh"
+#include "G4ThreeVector.hh"
+#include "G4Event.hh"
+#include "G4RandomTools.hh"
+#include <cmath>
+#include <random>
+
+
+namespace B4 {
+
+
+PrimaryGeneratorAction::PrimaryGeneratorAction()
+    : G4VUserPrimaryGeneratorAction(),
+      fParticleGun(nullptr)
+{
+    // Initialize the particle gun with one particle per event
+    G4int n_particle = 1;
+    fParticleGun = new G4ParticleGun(n_particle);
+
+
+    // Define the alpha particle
+    G4ParticleTable* particleTable = G4ParticleTable::GetParticleTable();
+    G4ParticleDefinition* particle = particleTable->FindParticle("alpha");
+
+
+    // Set the particle type
+    fParticleGun->SetParticleDefinition(particle);
+
+
+    // Set the default energy for alpha particles
+    fParticleGun->SetParticleEnergy(5.0 * MeV);
+
+
+    // Set the initial z-position of the particle gun
+    fParticleGun->SetParticlePosition(G4ThreeVector(0.0, 0.0, -50.0 * mm)); // 50 mm from the detector
+}
+
+
+PrimaryGeneratorAction::~PrimaryGeneratorAction()
+{
+    delete fParticleGun;
+}
+
+
+void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
+{
+    // Define the angle of incidence
+    G4double theta = 0.0 * deg; // Change to 45.0 * deg for an inclined beam
+    G4double phi = 0.0 * deg;    // Azimuthal angle
+
+
+    // Compute the momentum direction based on theta and phi
+    G4double dx = std::sin(theta) * std::cos(phi); // x-component of momentum
+    G4double dy = std::sin(theta) * std::sin(phi); // y-component of momentum
+    G4double dz = std::cos(theta);                // z-component of momentum
+    fParticleGun->SetParticleMomentumDirection(G4ThreeVector(dx, dy, dz));
+
+
+    // Generate a random position within a 1 mm diameter circle
+    G4double beamRadius = 0.5 * mm; // 1 mm diameter
+    G4double x0, y0;
+    do {
+        x0 = (G4UniformRand() * 2 - 1) * beamRadius;
+        y0 = (G4UniformRand() * 2 - 1) * beamRadius;
+    } while (x0 * x0 + y0 * y0 > beamRadius * beamRadius);
+
+
+    // Set the randomized particle position
+    fParticleGun->SetParticlePosition(G4ThreeVector(x0, y0, -50.0 * mm)); // Fixed z-position
+
+
+    // Generate the primary particle for the event
+    fParticleGun->GeneratePrimaryVertex(anEvent);
+}
+
+
+}  // namespace B4
